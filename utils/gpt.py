@@ -34,7 +34,7 @@ async def evaluate_answer_with_gpt(question, options, user_answer):
         response = await asyncio.to_thread(
             client.chat.completions.create,
             model="gpt-4",
-            temperature=0.5,
+            temperature=0.8,
             messages=[
                 {"role": "system", "content": "あなたは海外旅行に詳しい、人気のお笑い芸人です。必ず指定された形式で回答してください。"},
                 {"role": "user", "content": prompt}
