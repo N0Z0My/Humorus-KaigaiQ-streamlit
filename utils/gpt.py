@@ -2,6 +2,7 @@ from openai import OpenAI
 from utils.logger import setup_logger
 import asyncio
 from .config import SPREADSHEET_ID, OPENAI_API_KEY
+import streamlit as st
 
 # OpenAI クライアントの初期化
 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -9,8 +10,55 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # loggerの初期化
 logger = setup_logger(spreadsheet_id=SPREADSHEET_ID, user_id="gpt")
 
-async def evaluate_answer_with_gpt(question, options, user_answer):
+# システムロールの定義
+SYSTEM_ROLES = {
+    "お笑い芸人": "あなたは海外旅行に詳しい、人気のお笑い芸人です。ユーモアのある解説を心がけてください。",
+    "旅行ガイド": "あなたは20年以上の経験を持つベテランの旅行ガイドです。正確で詳細な情報を提供します。",
+    "現地在住者": "あなたは海外在住10年以上の経験者です。現地の生活者視点での解説を提供します。",
+    "歴史専門家": "あなたは各国の歴史と文化に詳しい専門家です。歴史的背景を交えた解説を提供します。",
+    "グルメライター": "あなたは食文化に精通したグルメライターです。食に関する詳しい解説を提供します。"
+}
+
+def get_selected_roles(location="main"):
+    """
+    Streamlitのマルチセレクトで選択されたロールを取得
+    
+    Args:
+        location (str): 'main' または 'sidebar' を指定してコンポーネントの表示位置を決定
+    """
+    # セレクトボックスの表示関数を決定
+    if location == "sidebar":
+        select_func = st.sidebar.multiselect
+    else:
+        select_func = st.multiselect
+    
+    # キャラクター選択UI
+    selected_roles = select_func(
+        "回答者のキャラクターを選択してください（複数選択可）",
+        options=list(SYSTEM_ROLES.keys()),
+        default=["お笑い芸人"],
+        help="複数のキャラクターを組み合わせることで、より多角的な解説が得られます"
+    )
+    
+    return selected_roles
+
+def create_combined_system_role(selected_roles):
+    """選択されたロールを組み合わせてシステムロールを作成"""
+    if not selected_roles:
+        return SYSTEM_ROLES["お笑い芸人"]  # デフォルトロール
+    
+    combined_role = "あなたは以下の特性を持つアドバイザーです：\n"
+    for role in selected_roles:
+        combined_role += f"- {SYSTEM_ROLES[role]}\n"
+    return combined_role
+
+async def evaluate_answer_with_gpt(question, options, user_answer, selected_roles=None):
     """GPTによる回答評価を行い、結果を返す"""
+    if selected_roles is None:
+        selected_roles = ["お笑い芸人"]
+    
+    system_role = create_combined_system_role(selected_roles)
+    
     prompt = f"""
     問題: {question}
     選択肢: {options}
@@ -26,7 +74,7 @@ async def evaluate_answer_with_gpt(question, options, user_answer):
     RESULT:[CORRECT] または RESULT:[INCORRECT]
     あなたの回答: [ユーザーの回答]
     正解: [適切な選択肢]
-    解説: [面白い解説]
+    解説: [選択したキャラクターに応じた面白い解説]
     """
 
     try:
@@ -37,7 +85,7 @@ async def evaluate_answer_with_gpt(question, options, user_answer):
             model="gpt-4",
             temperature=0.5,
             messages=[
-                {"role": "system", "content": "あなたは海外旅行に詳しい、人気のお笑い芸人です。必ず指定された形式で回答してください。"},
+                {"role": "system", "content": system_role},
                 {"role": "user", "content": prompt}
             ]
         )

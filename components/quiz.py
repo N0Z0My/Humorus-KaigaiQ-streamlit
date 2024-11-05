@@ -7,7 +7,7 @@ import asyncio
 # 問題数の制限を定数として定義
 MAX_QUESTIONS = 20
 
-def show_quiz_screen(df, logger=None):
+def show_quiz_screen(df, logger=None, selected_roles=None):  # selected_rolesパラメータを追加
     """クイズ画面を表示する関数"""
     if logger is None:
         logger = setup_logger(user_id=st.session_state.get('nickname'))
@@ -23,6 +23,10 @@ def show_quiz_screen(df, logger=None):
         st.session_state.answers_history = {}
     if 'total_attempted' not in st.session_state:
         st.session_state.total_attempted = 0
+
+    # 選択されたロールがない場合のデフォルト値設定
+    if selected_roles is None or len(selected_roles) == 0:
+        selected_roles = ["お笑い芸人"]
     
     # 終了条件のチェック（total_attemptedベース）
     if st.session_state.total_attempted >= MAX_QUESTIONS:
@@ -222,10 +226,25 @@ def process_answer(is_correct, current_question, select_button, gpt_response, lo
         # エラー時は元のテキスト表示にフォールバック
         st.write(gpt_response.replace("RESULT:[CORRECT]", "").replace("RESULT:[INCORRECT]", "").strip())
 
+async def evaluate_answer_with_gpt_wrapper(question, options, user_answer, selected_roles):
+    """GPT評価の呼び出しをラップする関数"""
+    return await evaluate_answer_with_gpt(
+        question=question,
+        options=options,
+        user_answer=user_answer,
+        selected_roles=selected_roles
+    )
+
 def handle_answer(select_button, question, options, current_question, logger):
     """回答ハンドリング処理"""
     with st.spinner('GPT-4が回答を評価しています...'):
-        gpt_response = asyncio.run(evaluate_answer_with_gpt(question, options, select_button))
+        # 選択されたロールを使用してGPT評価を実行
+        gpt_response = asyncio.run(evaluate_answer_with_gpt_wrapper(
+            question,
+            options,
+            select_button,
+            st.session_state.selected_roles
+        ))
     
     is_correct = "RESULT:[CORRECT]" in gpt_response
     
