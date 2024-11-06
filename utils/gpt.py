@@ -21,26 +21,27 @@ SYSTEM_ROLES = {
 
 def get_selected_roles(location="main"):
     """
-    Streamlitのマルチセレクトで選択されたロールを取得
+    Streamlitの単一選択で回答者のキャラクターを1人選択
     
     Args:
         location (str): 'main' または 'sidebar' を指定してコンポーネントの表示位置を決定
     """
     # セレクトボックスの表示関数を決定
     if location == "sidebar":
-        select_func = st.sidebar.multiselect
+        select_func = st.sidebar.selectbox  # multiselectからselectboxに変更
     else:
-        select_func = st.multiselect
+        select_func = st.selectbox
     
-    # キャラクター選択UI
-    selected_roles = select_func(
-        "回答者のキャラクターを選択してください（複数選択可）",
+    # キャラクター選択UI（単一選択）
+    selected_role = select_func(
+        "回答者のキャラクターを選択してください",
         options=list(SYSTEM_ROLES.keys()),
-        default=["お笑い芸人"],
-        help="複数のキャラクターを組み合わせることで、より多角的な解説が得られます"
+        index=0,  # デフォルトで最初のキャラクター（お笑い芸人）を選択
+        help="選択したキャラクターの視点で解説が得られます"
     )
     
-    return selected_roles
+    # 選択されたキャラクターをリストとして返す（既存コードとの互換性のため）
+    return [selected_role]
 
 def create_combined_system_role(selected_roles):
     """選択されたロールを組み合わせてシステムロールを作成"""
