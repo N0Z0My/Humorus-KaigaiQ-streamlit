@@ -189,7 +189,6 @@ def show_answer_animation(is_correct):
 
 def process_answer(is_correct, current_question, select_button, gpt_response, logger):
     """回答処理と表示"""
-
     # まず回答の正誤を処理
     if current_question not in st.session_state.answered_questions:
         if is_correct:
@@ -197,17 +196,16 @@ def process_answer(is_correct, current_question, select_button, gpt_response, lo
         else:
             logger.info(f"ユーザー[{st.session_state.nickname}] - 不正解 - 問題番号: {st.session_state.total_attempted + 1}, ユーザー回答: {select_button}")
         
-        # 回答済みとしてマークする前にカウントを増やす
         st.session_state.total_attempted += 1
         st.session_state.answered_questions.add(current_question)
+    
     try:
-    # GPTレスポンスから情報を抽出
+        # GPTレスポンスから情報を抽出
         response_lines = gpt_response.strip().split('\n')
-    
-        user_answer = select_button
-        correct_answer = select_button
-        explanation_lines = []
-    
+        user_answer = None
+        correct_answer = None
+        explanation = None
+        
         for line in response_lines:
             line = line.strip()
             if "あなたの回答:" in line:
@@ -215,16 +213,50 @@ def process_answer(is_correct, current_question, select_button, gpt_response, lo
             elif "正解:" in line:
                 correct_answer = line.split("正解:")[1].strip()
             elif "解説:" in line:
-                explanation_lines = [line.split("解説:")[1].strip()]
-            elif explanation_lines:  # 解説の続きの行
-                explanation_lines.append(line)
-    
-        explanation = " ".join(explanation_lines) if explanation_lines else "解説を取得できませんでした"
+                explanation = line.split("解説:")[1].strip()
+        
+        # もし値が取得できなかった場合のフォールバック
+        if user_answer is None:
+            user_answer = select_button
+        if correct_answer is None:
+            correct_answer = "正解の取得に失敗しました"
+        if explanation is None:
+            explanation = gpt_response  # 全文を表示
 
-    # スタイルを定義（以前と同じ）
-        style = """..."""  # 既存のスタイル定義をそのまま使用
+        style = """
+        <style>
+        .explanation-box {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+            background-color: #f8f9fa;
+        }
+        .answer-detail {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 15px;
+        }
+        .answer-label {
+            min-width: 120px;
+            font-weight: 600;
+            color: #555;
+        }
+        .answer-content {
+            flex: 1;
+            padding-left: 8px;
+        }
+        .explanation-text {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e0e0e0;
+            line-height: 1.6;
+            color: #333;
+        }
+        </style>
+        """
 
-    # HTMLを構築
         html = f"""
         {style}
         <div class="explanation-box">
@@ -242,14 +274,13 @@ def process_answer(is_correct, current_question, select_button, gpt_response, lo
             </div>
         </div>
         """
-    
+        
         st.markdown(html, unsafe_allow_html=True)
         
     except Exception as e:
         logger.error(f"回答表示処理でエラーが発生: {str(e)}")
-        # エラー時は元のテキスト表示にフォールバック
-        st.write(gpt_response.replace("RESULT:[CORRECT]", "").replace("RESULT:[INCORRECT]", "").strip())
-
+        st.write(gpt_response)
+    
 def show_navigation_buttons(current_question, logger):
     """ナビゲーションボタンの表示"""
     # 解説との間にスペースを追加
