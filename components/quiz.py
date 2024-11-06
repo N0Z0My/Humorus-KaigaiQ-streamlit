@@ -45,19 +45,6 @@ def show_quiz_screen(df, logger=None, selected_roles=None):  # selected_rolesパ
     st.write(f"## 問題 {current_progress + 1} / {MAX_QUESTIONS}")
     current_question = st.session_state.question_index
     
-    # 20問完了時の処理
-    if current_question >= MAX_QUESTIONS:
-        logger.info(f"ユーザー[{st.session_state.nickname}] - {MAX_QUESTIONS}問完了")
-        # 結果データの保存
-        st.session_state.quiz_results = {
-            'total_questions': MAX_QUESTIONS,
-            'correct_count': sum(1 for v in st.session_state.correct_answers.values() if v),
-            'answers_history': st.session_state.answers_history
-        }
-        st.session_state.screen = 'result'
-        st.rerun()
-        return
-    
     # 既に回答済みの問題をスキップ
     if current_question in st.session_state.answered_questions:
         st.session_state.question_index += 1
@@ -86,8 +73,42 @@ def show_quiz_screen(df, logger=None, selected_roles=None):  # selected_rolesパ
 
     show_navigation_buttons(current_question, logger)
 
+async def evaluate_answer_with_gpt_wrapper(question, options, user_answer, selected_roles):
+    """GPT評価の呼び出しをラップする関数"""
+    return await evaluate_answer_with_gpt(
+        question=question,
+        options=options,
+        user_answer=user_answer,
+        selected_roles=selected_roles
+    )
+
+def handle_answer(select_button, question, options, current_question, logger):
+    """回答ハンドリング処理"""
+    with st.spinner('GPT-4が回答を評価しています...'):
+        # 選択されたロールを使用してGPT評価を実行
+        gpt_response = asyncio.run(evaluate_answer_with_gpt_wrapper(
+            question,
+            options,
+            select_button,
+            st.session_state.selected_roles
+        ))
+    
+    is_correct = "RESULT:[CORRECT]" in gpt_response
+    
+    # 回答結果の保存
+    st.session_state.correct_answers[current_question] = is_correct
+    st.session_state.answers_history[current_question] = {
+        'question': question,
+        'user_answer': select_button,
+        'is_correct': is_correct,
+        'explanation': gpt_response
+    }
+    
+    show_answer_animation(is_correct)
+    process_answer(is_correct, current_question, select_button, gpt_response, logger)
+
 def show_answer_animation(is_correct):
-    """洗練された回答アニメーション表示"""
+    """正解・不正解のアニメーション表示"""
     if is_correct:
         st.markdown("""
             <style>
@@ -181,26 +202,71 @@ def process_answer(is_correct, current_question, select_button, gpt_response, lo
     
     try:
         # GPTレスポンスから情報を抽出
-        response_lines = [line.strip() for line in gpt_response.split('\n') if line.strip()]
+        response_lines = gpt_response.strip().split('\n')
         
         # 各行を解析
-        result = "INCORRECT"
-        user_answer = select_button
-        correct_answer = "解答の取得に失敗しました"
-        explanation = "解説の取得に失敗しました"
+        user_answer = None
+        correct_answer = None
+        explanation_lines = []
+        current_section = None
         
         for line in response_lines:
-            if line.startswith("RESULT:"):
-                result = line.replace("RESULT:[", "").replace("]", "").strip()
-            elif line.startswith("あなたの回答:"):
+            line = line.strip()
+            if not line or line.startswith("RESULT:"):
+                continue
+            
+            if line.startswith("あなたの回答:"):
                 user_answer = line.replace("あなたの回答:", "").strip()
+                current_section = "answer"
             elif line.startswith("正解:"):
                 correct_answer = line.replace("正解:", "").strip()
+                current_section = "correct"
             elif line.startswith("解説:"):
-                explanation = line.replace("解説:", "").strip()
+                current_section = "explanation"
+                explanation_lines.append(line.replace("解説:", "").strip())
+            elif current_section == "explanation":
+                explanation_lines.append(line)
 
-        # スタイルを1行で定義
-        style = """<style>.explanation-box{border:1px solid #e0e0e0;border-radius:8px;padding:16px;margin-top:12px;background-color:#f8f9fa;}.answer-detail{display:flex;align-items:center;margin:8px 0;font-size:15px;}.answer-label{min-width:100px;font-weight:600;color:#555;}.explanation-text{margin-top:12px;padding-top:12px;border-top:1px solid #e0e0e0;line-height:1.6;color:#333;}</style>"""
+        # デフォルト値の設定
+        if user_answer is None:
+            user_answer = select_button
+        if correct_answer is None:
+            correct_answer = "正解の取得に失敗しました"
+        explanation = " ".join(explanation_lines) if explanation_lines else "解説を取得できませんでした"
+
+        # スタイルを定義
+        style = """
+        <style>
+        .explanation-box {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+            background-color: #f8f9fa;
+        }
+        .answer-detail {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 15px;
+        }
+        .answer-label {
+            min-width: 120px;
+            font-weight: 600;
+            color: #555;
+        }
+        .answer-content {
+            flex: 1;
+        }
+        .explanation-text {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e0e0e0;
+            line-height: 1.6;
+            color: #333;
+        }
+        </style>
+        """
         
         # HTMLを構築
         html = f"""
@@ -208,11 +274,11 @@ def process_answer(is_correct, current_question, select_button, gpt_response, lo
         <div class="explanation-box">
             <div class="answer-detail">
                 <span class="answer-label">あなたの回答:</span>
-                <span>{user_answer}</span>
+                <span class="answer-content">{user_answer}</span>
             </div>
             <div class="answer-detail">
                 <span class="answer-label">正解:</span>
-                <span>{correct_answer}</span>
+                <span class="answer-content">{correct_answer}</span>
             </div>
             <div class="explanation-text">
                 <strong>💡 解説:</strong><br>
@@ -228,40 +294,6 @@ def process_answer(is_correct, current_question, select_button, gpt_response, lo
         # エラー時は元のテキスト表示にフォールバック
         st.write(gpt_response.replace("RESULT:[CORRECT]", "").replace("RESULT:[INCORRECT]", "").strip())
 
-async def evaluate_answer_with_gpt_wrapper(question, options, user_answer, selected_roles):
-    """GPT評価の呼び出しをラップする関数"""
-    return await evaluate_answer_with_gpt(
-        question=question,
-        options=options,
-        user_answer=user_answer,
-        selected_roles=selected_roles
-    )
-
-def handle_answer(select_button, question, options, current_question, logger):
-    """回答ハンドリング処理"""
-    with st.spinner('GPT-4が回答を評価しています...'):
-        # 選択されたロールを使用してGPT評価を実行
-        gpt_response = asyncio.run(evaluate_answer_with_gpt_wrapper(
-            question,
-            options,
-            select_button,
-            st.session_state.selected_roles
-        ))
-    
-    is_correct = "RESULT:[CORRECT]" in gpt_response
-    
-    # 回答結果の保存
-    st.session_state.correct_answers[current_question] = is_correct
-    st.session_state.answers_history[current_question] = {
-        'question': question,
-        'user_answer': select_button,
-        'is_correct': is_correct,
-        'explanation': gpt_response.replace("RESULT:[CORRECT]", "").replace("RESULT:[INCORRECT]", "").strip()
-    }
-    
-    show_answer_animation(is_correct)
-    process_answer(is_correct, current_question, select_button, gpt_response, logger)
-
 def show_navigation_buttons(current_question, logger):
     """ナビゲーションボタンの表示"""
     # 解説との間にスペースを追加
@@ -273,7 +305,7 @@ def show_navigation_buttons(current_question, logger):
         if st.session_state.total_attempted >= MAX_QUESTIONS:
             if st.button('結果を見る🎖️', 
                         use_container_width=True, 
-                        type="primary",  # 結果確認は重要なアクションなのでprimary
+                        type="primary",
                         help="クイズが完了しました。結果を確認しましょう"):
                 logger.info(f"ユーザー[{st.session_state.nickname}] - {MAX_QUESTIONS}問完了 - 結果画面へ遷移")
                 st.session_state.screen = 'result'
@@ -281,7 +313,7 @@ def show_navigation_buttons(current_question, logger):
         elif current_question in st.session_state.answered_questions:
             if st.button('次の問題へ ➡️', 
                         use_container_width=True,
-                        type="secondary",  # 次へは控えめにsecondary
+                        type="secondary",
                         help="次の問題に進みます"):
                 logger.info(f"ユーザー[{st.session_state.nickname}] - 次の問題へ進む - 現在の問題番号: {st.session_state.total_attempted + 1}")
                 next_question = current_question
