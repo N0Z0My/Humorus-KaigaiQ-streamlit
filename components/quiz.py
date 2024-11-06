@@ -189,6 +189,10 @@ def show_answer_animation(is_correct):
 
 def process_answer(is_correct, current_question, select_button, gpt_response, logger):
     """回答処理と表示"""
+
+    st.write("Debug - GPT Response:")
+    st.code(gpt_response)  # 実際のGPTレスポンスを表示
+    
     # まず回答の正誤を処理
     if current_question not in st.session_state.answered_questions:
         if is_correct:
