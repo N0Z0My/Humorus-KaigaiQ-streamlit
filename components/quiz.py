@@ -188,7 +188,22 @@ def show_answer_animation(is_correct):
         """, unsafe_allow_html=True)
 
 def process_answer(is_correct, current_question, select_button, gpt_response, logger):
-    """回答処理と表示"""
+    """
+    回答処理と表示を行う関数
+    
+    Parameters:
+    -----------
+    is_correct : bool
+        回答が正解かどうか
+    current_question : int
+        現在の問題番号
+    select_button : str
+        ユーザーが選択した回答
+    gpt_response : str
+        GPTからのレスポンス
+    logger : Logger
+        ロギング用のロガーオブジェクト
+    """
     # まず回答の正誤を処理
     if current_question not in st.session_state.answered_questions:
         if is_correct:
@@ -208,21 +223,44 @@ def process_answer(is_correct, current_question, select_button, gpt_response, lo
         
         for line in response_lines:
             line = line.strip()
-            if "あなたの回答:" in line:
-                user_answer = line.split("あなたの回答:")[1].strip()
-            elif "正解:" in line:
-                correct_answer = line.split("正解:")[1].strip()
-            elif "解説:" in line:
-                explanation = line.split("解説:")[1].strip()
-        
-        # もし値が取得できなかった場合のフォールバック
+            # RESULTの行をスキップ
+            if line.startswith("RESULT:"):
+                continue
+                
+            # コロンの位置を見つける
+            colon_index = line.find(":")
+            if colon_index != -1:
+                key = line[:colon_index].strip()
+                value = line[colon_index + 1:].strip()
+                
+                if "あなたの回答" in key:
+                    user_answer = value
+                elif "正解" in key:
+                    correct_answer = value
+                elif "解説" in key:
+                    explanation = value
+
+        # 値の検証とフォールバック
         if user_answer is None:
+            logger.warning(f"ユーザー回答の取得に失敗: {gpt_response}")
             user_answer = select_button
         if correct_answer is None:
+            logger.warning(f"正解の取得に失敗: {gpt_response}")
             correct_answer = "正解の取得に失敗しました"
         if explanation is None:
-            explanation = gpt_response  # 全文を表示
+            logger.warning(f"解説の取得に失敗: {gpt_response}")
+            explanation = gpt_response
 
+        # デバッグ情報の表示（開発時のみ）
+        if st.secrets.get("DEBUG_MODE", False):
+            st.write("Debug - GPT Response:", gpt_response)
+            st.write("Parsed values:", {
+                "user_answer": user_answer,
+                "correct_answer": correct_answer,
+                "explanation": explanation[:100] + "..."
+            })
+
+        # スタイルの定義
         style = """
         <style>
         .explanation-box {
@@ -257,6 +295,7 @@ def process_answer(is_correct, current_question, select_button, gpt_response, lo
         </style>
         """
 
+        # HTMLの生成
         html = f"""
         {style}
         <div class="explanation-box">
@@ -275,11 +314,17 @@ def process_answer(is_correct, current_question, select_button, gpt_response, lo
         </div>
         """
         
+        # 結果の表示
         st.markdown(html, unsafe_allow_html=True)
         
     except Exception as e:
+        # エラーハンドリング
         logger.error(f"回答表示処理でエラーが発生: {str(e)}")
-        st.write(gpt_response)
+        st.error("回答の表示中にエラーが発生しました。")
+        # エラー時はGPTレスポンスの生データを表示
+        st.write("GPTレスポンス:", gpt_response)
+        # エラーの詳細をログに記録
+        logger.error(f"エラーの詳細: {str(e)}", exc_info=True)
     
 def show_navigation_buttons(current_question, logger):
     """ナビゲーションボタンの表示"""
