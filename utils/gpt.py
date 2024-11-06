@@ -34,7 +34,7 @@ def get_selected_roles(location="main"):
     
     # キャラクター選択UI（単一選択）
     selected_role = select_func(
-        "回答者のキャラクターを選択してください",
+        "解説者のキャラクターを選択してください",
         options=list(SYSTEM_ROLES.keys()),
         index=0,  # デフォルトで最初のキャラクター（お笑い芸人）を選択
         help="選択したキャラクターの視点で解説が得られます"

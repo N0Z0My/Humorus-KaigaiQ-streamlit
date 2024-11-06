@@ -62,7 +62,7 @@ def show_sidebar():
             # キャラクター選択を追加
             if st.session_state.screen == 'quiz':
                 st.divider()
-                st.subheader("回答キャラクター設定")
+                st.subheader("解説キャラクター設定")
                 selected_roles = get_selected_roles(location="sidebar")
                 if selected_roles:
                     st.session_state.selected_roles = selected_roles
