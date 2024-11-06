@@ -75,7 +75,7 @@ async def evaluate_answer_with_gpt(question, options, user_answer, selected_role
     RESULT:[CORRECT] または RESULT:[INCORRECT]
     あなたの回答: [ユーザーの回答]
     正解: [適切な選択肢]
-    解説: [選択したキャラクターに応じた面白い解説]
+    解説: [300字程度の、選択したキャラクターに応じた面白い解説]
     """
 
     try:
