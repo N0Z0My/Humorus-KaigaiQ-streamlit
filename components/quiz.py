@@ -86,68 +86,6 @@ def show_quiz_screen(df, logger=None, selected_roles=None):  # selected_rolesパ
 
     show_navigation_buttons(current_question, logger)
 
-def process_answer(is_correct, current_question, select_button, gpt_response, logger):
-    """回答処理と表示"""
-    # まず回答の正誤を処理
-    if current_question not in st.session_state.answered_questions:
-        if is_correct:
-            logger.info(f"ユーザー[{st.session_state.nickname}] - 正解 - 問題番号: {st.session_state.total_attempted + 1}, ユーザー回答: {select_button}")
-        else:
-            logger.info(f"ユーザー[{st.session_state.nickname}] - 不正解 - 問題番号: {st.session_state.total_attempted + 1}, ユーザー回答: {select_button}")
-        
-        # 回答済みとしてマークする前にカウントを増やす
-        st.session_state.total_attempted += 1
-        st.session_state.answered_questions.add(current_question)
-    
-    try:
-        # GPTレスポンスから情報を抽出
-        response_lines = [line.strip() for line in gpt_response.split('\n') if line.strip()]
-        
-        # 各行を解析
-        result = "INCORRECT"
-        user_answer = select_button
-        correct_answer = "解答の取得に失敗しました"
-        explanation = "解説の取得に失敗しました"
-        
-        for line in response_lines:
-            if line.startswith("RESULT:"):
-                result = line.replace("RESULT:[", "").replace("]", "").strip()
-            elif line.startswith("あなたの回答:"):
-                user_answer = line.replace("あなたの回答:", "").strip()
-            elif line.startswith("正解:"):
-                correct_answer = line.replace("正解:", "").strip()
-            elif line.startswith("解説:"):
-                explanation = line.replace("解説:", "").strip()
-
-        # スタイルを1行で定義
-        style = """<style>.explanation-box{border:1px solid #e0e0e0;border-radius:8px;padding:16px;margin-top:12px;background-color:#f8f9fa;}.answer-detail{display:flex;align-items:center;margin:8px 0;font-size:15px;}.answer-label{min-width:100px;font-weight:600;color:#555;}.explanation-text{margin-top:12px;padding-top:12px;border-top:1px solid #e0e0e0;line-height:1.6;color:#333;}</style>"""
-        
-        # HTMLを構築
-        html = f"""
-        {style}
-        <div class="explanation-box">
-            <div class="answer-detail">
-                <span class="answer-label">あなたの回答:</span>
-                <span>{user_answer}</span>
-            </div>
-            <div class="answer-detail">
-                <span class="answer-label">正解:</span>
-                <span>{correct_answer}</span>
-            </div>
-            <div class="explanation-text">
-                <strong>💡 解説:</strong><br>
-                {explanation}
-            </div>
-        </div>
-        """
-        
-        st.markdown(html, unsafe_allow_html=True)
-        
-    except Exception as e:
-        logger.error(f"回答表示処理でエラーが発生: {str(e)}")
-        # エラー時は元のテキスト表示にフォールバック
-        st.write(gpt_response.replace("RESULT:[CORRECT]", "").replace("RESULT:[INCORRECT]", "").strip())
-
 def show_answer_animation(is_correct):
     """洗練された回答アニメーション表示"""
     if is_correct:
@@ -228,20 +166,33 @@ def show_answer_animation(is_correct):
             </div>
         """, unsafe_allow_html=True)
 
-
+def process_answer(is_correct, current_question, select_button, gpt_response, logger):
+    """回答処理と表示"""
+    # まず回答の正誤を処理
+    if current_question not in st.session_state.answered_questions:
+        if is_correct:
+            logger.info(f"ユーザー[{st.session_state.nickname}] - 正解 - 問題番号: {st.session_state.total_attempted + 1}, ユーザー回答: {select_button}")
+        else:
+            logger.info(f"ユーザー[{st.session_state.nickname}] - 不正解 - 問題番号: {st.session_state.total_attempted + 1}, ユーザー回答: {select_button}")
+        
+        # 回答済みとしてマークする前にカウントを増やす
+        st.session_state.total_attempted += 1
+        st.session_state.answered_questions.add(current_question)
     
     try:
         # GPTレスポンスから情報を抽出
         response_lines = [line.strip() for line in gpt_response.split('\n') if line.strip()]
         
-        # デフォルト値を設定
+        # 各行を解析
+        result = "INCORRECT"
         user_answer = select_button
         correct_answer = "解答の取得に失敗しました"
         explanation = "解説の取得に失敗しました"
         
-        # 各行を解析
         for line in response_lines:
-            if line.startswith("あなたの回答:"):
+            if line.startswith("RESULT:"):
+                result = line.replace("RESULT:[", "").replace("]", "").strip()
+            elif line.startswith("あなたの回答:"):
                 user_answer = line.replace("あなたの回答:", "").strip()
             elif line.startswith("正解:"):
                 correct_answer = line.replace("正解:", "").strip()
