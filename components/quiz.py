@@ -7,7 +7,7 @@ import asyncio
 # 問題数の制限を定数として定義
 MAX_QUESTIONS = 20
 
-def show_quiz_screen(df, logger=None, selected_roles=None):  # selected_rolesパラメータを追加
+def show_quiz_screen(df, logger=None, selected_roles=None):
     """クイズ画面を表示する関数"""
     if logger is None:
         logger = setup_logger(user_id=st.session_state.get('nickname'))
@@ -23,11 +23,19 @@ def show_quiz_screen(df, logger=None, selected_roles=None):  # selected_rolesパ
         st.session_state.answers_history = {}
     if 'total_attempted' not in st.session_state:
         st.session_state.total_attempted = 0
+    if 'previous_role' not in st.session_state:  # 前回の選択を記録するための状態を追加
+        st.session_state.previous_role = None
 
     # 選択されたロールがない場合のデフォルト値設定
     if selected_roles is None or len(selected_roles) == 0:
         selected_roles = ["お笑い芸人"]
     
+    # キャラクター選択が変更されたかチェック
+    current_role = selected_roles[0]  # 単一選択なので最初の要素を使用
+    if current_role != st.session_state.previous_role:
+        logger.info(f"ユーザー[{st.session_state.nickname}] - キャラクター変更: {current_role}")
+        st.session_state.previous_role = current_role
+
     # 終了条件のチェック（total_attemptedベース）
     if st.session_state.total_attempted >= MAX_QUESTIONS:
         logger.info(f"ユーザー[{st.session_state.nickname}] - {MAX_QUESTIONS}問完了")
@@ -85,7 +93,6 @@ async def evaluate_answer_with_gpt_wrapper(question, options, user_answer, selec
 def handle_answer(select_button, question, options, current_question, logger):
     """回答ハンドリング処理"""
     with st.spinner('GPT-4が回答を評価しています...'):
-        # 選択されたロールを使用してGPT評価を実行
         gpt_response = asyncio.run(evaluate_answer_with_gpt_wrapper(
             question,
             options,
@@ -94,6 +101,7 @@ def handle_answer(select_button, question, options, current_question, logger):
         ))
     
     is_correct = "RESULT:[CORRECT]" in gpt_response
+    current_role = st.session_state.selected_roles[0]  # 現在選択中のキャラクター
     
     # 回答結果の保存
     st.session_state.correct_answers[current_question] = is_correct
@@ -101,8 +109,15 @@ def handle_answer(select_button, question, options, current_question, logger):
         'question': question,
         'user_answer': select_button,
         'is_correct': is_correct,
-        'explanation': gpt_response
+        'explanation': gpt_response,
+        'character': current_role  # キャラクター情報を保存
     }
+    
+    # ログにキャラクター情報を追加
+    if is_correct:
+        logger.info(f"ユーザー[{st.session_state.nickname}] - 正解 - 問題番号: {st.session_state.total_attempted + 1}, ユーザー回答: {select_button}, キャラクター: {current_role}")
+    else:
+        logger.info(f"ユーザー[{st.session_state.nickname}] - 不正解 - 問題番号: {st.session_state.total_attempted + 1}, ユーザー回答: {select_button}, キャラクター: {current_role}")
     
     show_answer_animation(is_correct)
     process_answer(is_correct, current_question, select_button, gpt_response, logger)
