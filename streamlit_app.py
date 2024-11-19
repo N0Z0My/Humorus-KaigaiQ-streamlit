@@ -49,7 +49,7 @@ def init_logger():
 def load_data():
     """データの読み込み"""
     try:
-        df = pd.read_excel('f_kaigai.xlsx', sheet_name='sheet1', index_col=0)
+        df = pd.read_excel('kaigai_part15-30.xlsx', sheet_name='sheet1', index_col=0)
         return df
     except Exception as e:
         st.error("データの読み込みに失敗しました。")
