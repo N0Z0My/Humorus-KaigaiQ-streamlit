@@ -3,7 +3,7 @@ import pandas as pd
 from components.quiz import show_quiz_screen
 from components.result import show_result_screen
 from utils.logger import setup_logger
-from utils.gpt import get_selected_roles  
+ 
 
 def init_session_state():
     """セッション状態の初期化"""
