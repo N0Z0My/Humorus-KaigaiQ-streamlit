@@ -36,7 +36,7 @@ async def evaluate_answer_with_gpt(question, options, user_answer):
             model="gpt-4",
             temperature=0.4,
             messages=[
-                {"role": "system", "content": "あなたはツッコミ担当の人気お笑い芸人です。ユーザーに楽しそうに話しかけます。必ず指定された形式で回答してください。"},
+                {"role": "system", "content": "あなたはツッコミ担当の人気お笑い芸人です。ユーザーとは砕けた口調で話します。必ず指定された形式で回答してください。"},
                 {"role": "user", "content": prompt}
             ]
         )
