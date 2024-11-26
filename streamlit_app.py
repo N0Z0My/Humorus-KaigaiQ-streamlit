@@ -113,7 +113,6 @@ def main():
             show_quiz_screen(
                 df=df,
                 logger=st.session_state.logger,
-                selected_roles=st.session_state.selected_roles  # 追加
             )
         else:
             st.error("問題データを読み込めませんでした。")
