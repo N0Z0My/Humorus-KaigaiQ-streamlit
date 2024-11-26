@@ -21,8 +21,6 @@ def init_session_state():
         st.session_state.logger = None
     if 'quiz_df' not in st.session_state:
         st.session_state.quiz_df = None
-    if 'selected_roles' not in st.session_state:  
-        st.session_state.selected_roles = ["お笑い芸人"]
 
 def init_logger():
     """ロガーの初期化と設定"""
@@ -59,16 +57,7 @@ def show_sidebar():
     """サイドバーの表示"""
     with st.sidebar:
         if st.session_state.nickname:
-            # キャラクター選択を追加
-            if st.session_state.screen == 'quiz':
-                st.divider()
-                st.subheader("解説キャラクター設定")
-                selected_roles = get_selected_roles(location="sidebar")
-                if selected_roles:
-                    st.session_state.selected_roles = selected_roles
-                else:
-                    st.warning("少なくとも1つのキャラクターを選択してください")
-            
+
             # ログアウトボタン
             if st.button("ログアウト"):
                 st.session_state.nickname = None

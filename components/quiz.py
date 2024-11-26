@@ -5,7 +5,7 @@ from utils.logger import setup_logger
 import asyncio
 
 # 問題数の制限を定数として定義
-MAX_QUESTIONS = 10
+MAX_QUESTIONS = 15
 
 def show_quiz_screen(df, logger=None, selected_roles=None):
     """クイズ画面を表示する関数"""
@@ -25,16 +25,6 @@ def show_quiz_screen(df, logger=None, selected_roles=None):
         st.session_state.total_attempted = 0
     if 'previous_role' not in st.session_state:  # 前回の選択を記録するための状態を追加
         st.session_state.previous_role = None
-
-    # 選択されたロールがない場合のデフォルト値設定
-    if selected_roles is None or len(selected_roles) == 0:
-        selected_roles = ["お笑い芸人"]
-    
-    # キャラクター選択が変更されたかチェック
-    current_role = selected_roles[0]  # 単一選択なので最初の要素を使用
-    if current_role != st.session_state.previous_role:
-        logger.info(f"ユーザー[{st.session_state.nickname}] - キャラクター変更: {current_role}")
-        st.session_state.previous_role = current_role
 
     # 終了条件のチェック（total_attemptedベース）
     if st.session_state.total_attempted >= MAX_QUESTIONS:
