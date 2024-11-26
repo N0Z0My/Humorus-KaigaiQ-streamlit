@@ -7,7 +7,7 @@ import asyncio
 # 問題数の制限を定数として定義
 MAX_QUESTIONS = 15
 
-def show_quiz_screen(df, logger=None, selected_roles=None):
+def show_quiz_screen(df, logger=None):
     """クイズ画面を表示する関数"""
     if logger is None:
         logger = setup_logger(user_id=st.session_state.get('nickname'))
@@ -23,8 +23,6 @@ def show_quiz_screen(df, logger=None, selected_roles=None):
         st.session_state.answers_history = {}
     if 'total_attempted' not in st.session_state:
         st.session_state.total_attempted = 0
-    if 'previous_role' not in st.session_state:  # 前回の選択を記録するための状態を追加
-        st.session_state.previous_role = None
 
     # 終了条件のチェック（total_attemptedベース）
     if st.session_state.total_attempted >= MAX_QUESTIONS:
@@ -71,13 +69,12 @@ def show_quiz_screen(df, logger=None, selected_roles=None):
 
     show_navigation_buttons(current_question, logger)
 
-async def evaluate_answer_with_gpt_wrapper(question, options, user_answer, selected_roles):
+async def evaluate_answer_with_gpt_wrapper(question, options, user_answer):
     """GPT評価の呼び出しをラップする関数"""
     return await evaluate_answer_with_gpt(
         question=question,
         options=options,
-        user_answer=user_answer,
-        selected_roles=selected_roles
+        user_answer=user_answer
     )
 
 def handle_answer(select_button, question, options, current_question, logger):
@@ -86,7 +83,7 @@ def handle_answer(select_button, question, options, current_question, logger):
         gpt_response = asyncio.run(evaluate_answer_with_gpt_wrapper(
             question,
             options,
-            select_button,
+            select_button
         ))
     
     is_correct = "RESULT:[CORRECT]" in gpt_response
