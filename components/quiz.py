@@ -87,11 +87,9 @@ def handle_answer(select_button, question, options, current_question, logger):
             question,
             options,
             select_button,
-            st.session_state.selected_roles
         ))
     
     is_correct = "RESULT:[CORRECT]" in gpt_response
-    current_role = st.session_state.selected_roles[0]  # 現在選択中のキャラクター
     
     # 回答結果の保存
     st.session_state.correct_answers[current_question] = is_correct
@@ -100,14 +98,13 @@ def handle_answer(select_button, question, options, current_question, logger):
         'user_answer': select_button,
         'is_correct': is_correct,
         'explanation': gpt_response,
-        'character': current_role  # キャラクター情報を保存
     }
     
     # ログにキャラクター情報を追加
     if is_correct:
-        logger.info(f"ユーザー[{st.session_state.nickname}] - 正解 - 問題番号: {st.session_state.total_attempted + 1}, ユーザー回答: {select_button}, キャラクター: {current_role}")
+        logger.info(f"ユーザー[{st.session_state.nickname}] - 正解 - 問題番号: {st.session_state.total_attempted + 1}, ユーザー回答: {select_button}")
     else:
-        logger.info(f"ユーザー[{st.session_state.nickname}] - 不正解 - 問題番号: {st.session_state.total_attempted + 1}, ユーザー回答: {select_button}, キャラクター: {current_role}")
+        logger.info(f"ユーザー[{st.session_state.nickname}] - 不正解 - 問題番号: {st.session_state.total_attempted + 1}, ユーザー回答: {select_button}")
     
     show_answer_animation(is_correct)
     process_answer(is_correct, current_question, select_button, gpt_response, logger)
